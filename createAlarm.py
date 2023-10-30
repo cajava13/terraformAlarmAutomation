@@ -1,31 +1,38 @@
 import boto3
 
-# Lambda function to create CloudWatch alarm and associate with SNS topic
-def create_alarm(event, context):
-    instance_id = event['detail']['instance-id']
-    
-    # Create CloudWatch client
-    cloudwatch = boto3.client('cloudwatch')
-    
-    # Create SNS client
-    sns = boto3.client('sns')
-    
-    # Create CloudWatch alarm
-    response = cloudwatch.put_metric_alarm(
-        AlarmName=f'InstanceAlarm-{instance_id}',
-        ComparisonOperator='GreaterThanThreshold',
-        EvaluationPeriods=1,
-        MetricName='CPUUtilization',
-        Namespace='AWS/EC2',
-        Period=180,
-        Threshold=80,
-        Statistic='Average',
-        Dimensions=[
-            {
-                'Name': 'InstanceId',
-                'Value': instance_id
-            },
-        ],
-    )
-    
-    print(f'CloudWatch alarm created: {response}')
+# Lambda function to create CloudWatch alarm 
+class CreateAlarm:
+    def __init__(self):
+        self.cloudwatch_client = boto3.client('cloudwatch')
+             
+    def create_alarm(self,thisInstanceID):
+        try:
+            response = self.cloudwatch_client.put_metric_alarm(
+                AlarmName = thisInstanceID,
+                AlarmDescription='the age of the latest consistent snapshot, in seconds',
+                ActionsEnabled=True,
+                MetricName='CPUUtilization',
+                Namespace='AWS/EC2',
+                Statistic='Average',
+                Period=300,
+                EvaluationPeriods=5,
+                Threshold=1,
+                ComparisonOperator='GreaterThanOrEqualToThreshold',
+                Unit='Seconds'
+            )
+            return {
+                'statusCode': 200,
+                'body': 'The CPUUtilization Alarm created successfully!'
+            }
+        except Exception as e:
+            print(f'Error creating the CPUUtilization Alarm')
+            return {
+                'statusCode': 500,
+                'body': 'Error creating the CPUUtilization Alarm'
+            }
+
+def lambda_handler(event, context):
+    # get the instance id that triggered the event
+    thisInstanceID = event['detail']['instance-id']
+    print("instance-id: " + thisInstanceID)
+    return CreateAlarm().create_alarm(thisInstanceID)
