@@ -9,16 +9,21 @@ class CreateAlarm:
         try:
             response = self.cloudwatch_client.put_metric_alarm(
                 AlarmName = thisInstanceID,
-                AlarmDescription='the age of the latest consistent snapshot, in seconds',
+                AlarmDescription='CPUUtilization',
                 ActionsEnabled=True,
                 MetricName='CPUUtilization',
                 Namespace='AWS/EC2',
                 Statistic='Average',
-                Period=300,
-                EvaluationPeriods=5,
-                Threshold=1,
+                Period=60,
+                EvaluationPeriods=1,
+                Threshold=80,
                 ComparisonOperator='GreaterThanOrEqualToThreshold',
-                Unit='Seconds'
+                Dimensions=[
+                    {
+                        'Name': 'InstanceId',
+                        'Value': thisInstanceID
+                    },
+                ],
             )
             return {
                 'statusCode': 200,
@@ -30,7 +35,7 @@ class CreateAlarm:
                 'statusCode': 500,
                 'body': 'Error creating the CPUUtilization Alarm'
             }
-
+            
 def lambda_handler(event, context):
     # get the instance id that triggered the event
     thisInstanceID = event['detail']['instance-id']
