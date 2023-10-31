@@ -6,20 +6,20 @@ resource "aws_lambda_function" "create_alarm" {
   filename         = "Lambdas/createAlarm.zip"
   function_name    = "create_alarm"
   role             = aws_iam_role.lambda_exec.arn
-  handler          = "createAlarm.create_alarm"
+  handler          = "createAlarm.lambda_handler"
   source_code_hash = data.archive_file.createAlarmZip.output_base64sha256
   runtime          = "python3.10"
-  timeout          = "10"
+  timeout          = "30"
 }
 
 resource "aws_lambda_function" "delete_alarm" {
   filename      = "Lambdas/deleteAlarm.zip"
   function_name = "delete_alarm"
   role          = aws_iam_role.lambda_exec.arn
-  handler       = "deleteAlarm.delete_alarm"
+  handler       = "deleteAlarm.lambda_handler"
   source_code_hash = data.archive_file.deleteAlarmZip.output_base64sha256
   runtime          = "python3.10"
-  timeout          = "10"
+  timeout          = "30"
 }
 
 # Create the IAM role for Lambda execution

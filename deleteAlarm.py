@@ -1,23 +1,29 @@
 import boto3
 
+class DeleteAlarm:
+    def __init__(self):
+        self.cloudwatch_client = boto3.client('cloudwatch')
+    
+    def delete_alarm(self,InstanceID):
+        try:
+            response = self.cloudwatch_client.delete_alarms(
+                    AlarmNames=[InstanceID]
+                )
+            
+            return {
+                'statusCode': 200,
+                'body': 'The CPUUtilization Alarm deleted successfully!'
+            }
+        except Exception as e:
+            print(f'Error delete the CPUUtilization Alarm')
+            return {
+                'statusCode': 500,
+                'body': 'Error delete the CPUUtilization Alarm'
+            }
+
 # Lambda function to delete CloudWatch alarm when instance is terminated
-def delete_alarm(event, context):
-    instance_id = event['detail']['instance-id']
-    
-    # Create CloudWatch client
-    cloudwatch = boto3.client('cloudwatch')
-    
-    # Describe CloudWatch alarms
-    response = cloudwatch.describe_alarms(
-        AlarmNamePrefix=f'InstanceAlarm-{instance_id}',
-    )
-    
-    alarm_names = [alarm['AlarmName'] for alarm in response['MetricAlarms']]
-    
-    # Delete CloudWatch alarms
-    for alarm_name in alarm_names:
-        response = cloudwatch.delete_alarms(
-            AlarmNames=[alarm_name]
-        )
-        
-        print(f'CloudWatch alarm deleted: {response}')
+def lambda_handler(event, context):
+    # get the instance id that triggered the event
+    InstanceID = event['detail']['instance-id']
+    print("instance-id: " + InstanceID)
+    return DeleteAlarm().delete_alarm(InstanceID)

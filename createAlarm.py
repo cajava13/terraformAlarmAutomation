@@ -5,10 +5,10 @@ class CreateAlarm:
     def __init__(self):
         self.cloudwatch_client = boto3.client('cloudwatch')
              
-    def create_alarm(self,thisInstanceID):
+    def create_alarm(self,InstanceID):
         try:
             response = self.cloudwatch_client.put_metric_alarm(
-                AlarmName = thisInstanceID,
+                AlarmName = InstanceID,
                 AlarmDescription='CPUUtilization',
                 ActionsEnabled=True,
                 MetricName='CPUUtilization',
@@ -21,7 +21,7 @@ class CreateAlarm:
                 Dimensions=[
                     {
                         'Name': 'InstanceId',
-                        'Value': thisInstanceID
+                        'Value': InstanceID
                     },
                 ],
             )
@@ -38,6 +38,6 @@ class CreateAlarm:
             
 def lambda_handler(event, context):
     # get the instance id that triggered the event
-    thisInstanceID = event['detail']['instance-id']
-    print("instance-id: " + thisInstanceID)
-    return CreateAlarm().create_alarm(thisInstanceID)
+    InstanceID = event['detail']['instance-id']
+    print("instance-id: " + InstanceID)
+    return CreateAlarm().create_alarm(InstanceID)
