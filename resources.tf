@@ -1,7 +1,6 @@
 #########################################
 # Create Lambdas
 #########################################
-
 resource "aws_lambda_function" "create_alarm" {
   filename         = "Lambdas/createAlarm.zip"
   function_name    = "create_alarm"
@@ -11,7 +10,6 @@ resource "aws_lambda_function" "create_alarm" {
   runtime          = "python3.10"
   timeout          = "30"
 }
-
 resource "aws_lambda_function" "delete_alarm" {
   filename      = "Lambdas/deleteAlarm.zip"
   function_name = "delete_alarm"
@@ -21,11 +19,11 @@ resource "aws_lambda_function" "delete_alarm" {
   runtime          = "python3.10"
   timeout          = "30"
 }
-
+######################################################################
 # Create the IAM role for Lambda execution
+######################################################################
 resource "aws_iam_role" "lambda_exec" {
   name = "lambda_execution_role"
-
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -41,16 +39,11 @@ resource "aws_iam_role" "lambda_exec" {
 }
 EOF
 }
-
-# Attach the required IAM policies to the Lambda execution role
-resource "aws_iam_role_policy_attachment" "lambda_exec_policy" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-# Create the IAM policy for accessing SNS
-resource "aws_iam_policy" "sns_policy" {
-  name        = "sns_policy"
+######################################################################
+# Create the IAM policy for Lambda
+######################################################################
+resource "aws_iam_policy" "lambda_policy" {
+  name        = "lambda_policy"
   description = "Allows Lambda functions to access SNS topic"
   policy      = <<EOF
 {
@@ -65,15 +58,20 @@ resource "aws_iam_policy" "sns_policy" {
 }
 EOF
 }
-
-# Attach the IAM policy to the Lambda execution role
-resource "aws_iam_role_policy_attachment" "sns_policy_attachment" {
+######################################################################
+# Attach the IAM policy for the Lambda execution role
+######################################################################
+resource "aws_iam_role_policy_attachment" "lambda_exec_policy" {
   role       = aws_iam_role.lambda_exec.name
-  policy_arn = aws_iam_policy.sns_policy.arn
+  policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
-# Create the CloudWatch Event Rule: Trigger on Instance Creation
-resource "aws_cloudwatch_event_rule" "instance_create_rule" {
+
+
+###############################################################################
+# CloudWatch Event Rule EC2 instance Status Running
+###############################################################################
+resource "aws_cloudwatch_event_rule" "ec2_instance_running_rule" {
   name        = "instance_create_rule"
   description = "Trigger Lambda function when an instance is created"
   event_pattern = <<EOF
@@ -92,16 +90,30 @@ resource "aws_cloudwatch_event_rule" "instance_create_rule" {
 }
 EOF
 }
-
-# Create the CloudWatch Event Rule Target for the instance_create_rule
+######################################################################
+# Lambda create_alarm permission
+######################################################################
+resource "aws_lambda_permission" "create_alarm_permission" {
+  statement_id  = "AllowExecutionFromCloudWatchEventRule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.create_alarm.arn
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.ec2_instance_running_rule.arn
+}
+######################################################################
+# CloudWatch Event Rule Target for the ec2_instance_running_rule
+######################################################################
 resource "aws_cloudwatch_event_target" "instance_create_target" {
-  rule      = aws_cloudwatch_event_rule.instance_create_rule.name
+  rule      = aws_cloudwatch_event_rule.ec2_instance_running_rule.name
   target_id = "create_alarm_lambda_target"
   arn       = aws_lambda_function.create_alarm.arn
 }
 
-# Create the CloudWatch Event Rule: Trigger on Instance Termination
-resource "aws_cloudwatch_event_rule" "instance_terminate_rule" {
+
+######################################################################
+# CloudWatch Event Rule EC2 instance Status Terminated
+######################################################################
+resource "aws_cloudwatch_event_rule" "ec2_instance_terminate_rule" {
   name        = "instance_terminate_rule"
   description = "Trigger Lambda function when an instance is terminated"
   event_pattern = <<EOF
@@ -120,28 +132,21 @@ resource "aws_cloudwatch_event_rule" "instance_terminate_rule" {
 }
 EOF
 }
-
-# Create the CloudWatch Event Rule Target for the instance_terminate_rule
-resource "aws_cloudwatch_event_target" "instance_terminate_target" {
-  rule      = aws_cloudwatch_event_rule.instance_terminate_rule.name
-  target_id = "delete_alarm_lambda_target"
-  arn       = aws_lambda_function.delete_alarm.arn
-}
-
-# Create the Lambda permission for instance_create_rule
-resource "aws_lambda_permission" "instance_create_permission" {
-  statement_id  = "AllowExecutionFromCloudWatchEventRule"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.create_alarm.arn
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.instance_create_rule.arn
-}
-
-# Create the Lambda permission for instance_terminate_rule
-resource "aws_lambda_permission" "instance_terminate_permission" {
+######################################################################
+# Lambda delete_alarm permission
+######################################################################
+resource "aws_lambda_permission" "delete_alarm_permission" {
   statement_id  = "AllowExecutionFromCloudWatchEventRule"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.delete_alarm.arn
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.instance_terminate_rule.arn
+  source_arn    = aws_cloudwatch_event_rule.ec2_instance_terminate_rule.arn
+}
+######################################################################
+# CloudWatch Event Rule Target for the ec2_instance_terminated_rule
+######################################################################
+resource "aws_cloudwatch_event_target" "instance_terminate_target" {
+  rule      = aws_cloudwatch_event_rule.ec2_instance_terminate_rule.name
+  target_id = "delete_alarm_lambda_target"
+  arn       = aws_lambda_function.delete_alarm.arn
 }
